@@ -46,6 +46,12 @@ def main(args):
         sys.stderr.write("> downloading model\n")
         File(__models__, models[args.model_directory]).download()
 
+    ''' Old Model Support'''
+    old_vers = ["v1", "v2"]
+    if any(v in args.model_directory for v in old_vers):
+        use_koi = False
+    else: use_koi = True
+    
     sys.stderr.write(f"> loading model {args.model_directory}\n")
     try:
         model = load_model(
@@ -56,7 +62,7 @@ def main(args):
             overlap=args.overlap,
             batchsize=args.batchsize,
             quantize=args.quantize,
-            use_koi=True,
+            use_koi=use_koi,
         )
     except FileNotFoundError:
         sys.stderr.write(f"> error: failed to load {args.model_directory}\n")
