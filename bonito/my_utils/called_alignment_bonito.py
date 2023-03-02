@@ -1,4 +1,4 @@
-# env: py27
+# env: Nanopore
 #!/usr/bin/python
 import sys
 import numpy as np
@@ -45,25 +45,26 @@ for delt, r in zip(deltas, rates):
 
     # 0 is entirely unconstrained so no state split
     if delt == '000':
-        path_var_ref = '/home/work/mnt/kw5km/Research/Nanopore_Channel/Data_new/deBruijn_6mer_mean/n{}_bp{}_delta{}_DeepSimu/fasta_raw/'.format(n, bp, delt)
+        path_var_ref = '/home/kw5km/work/mnt/kw5km/Research/Nanopore_Channel/Data_new/deBruijn_6mer_mean/n{}_bp{}_delta{}_DeepSimu/fasta_raw/'.format(n, bp, delt)
         basecall_file = 'n{}_bp{}_delta{}@v{}.fastq'.format(n, bp, delt, ver)
 
     else:
-        path_var_ref = '/home/work/mnt/kw5km/Research/Nanopore_Channel/Data_new/deBruijn_6mer_mean/Encoded/n{}_bp{}_delta{}_statesplit_rate{}_DeepSimu/fasta_raw/'.format(n, bp, delt, r)
+        path_var_ref = 'home/kw5km/work/mnt/kw5km/Research/Nanopore_Channel/Data_new/deBruijn_6mer_mean/Encoded/n{}_bp{}_delta{}_statesplit_rate{}_DeepSimu/fasta_raw/'.format(n, bp, delt, r)
         basecall_file = 'n{}_bp{}_delta{}_rate{}@v{}.fastq'.format(n, bp, delt, r, ver)
 
     score_f, fig_f = '/scores/', '/Figs/'
-    path_var_long = '/home/work/mnt/kw5km/Research/Nanopore_Channel/Data_new/bonito/basecalls/'
+    path_var_long = '/home/kw5km/work/mnt/kw5km/Research/Nanopore_Channel/Data_new/bonito/basecalls/'
     path_var_out = path_var_long  
 
     bon_calls = {}
     filename_bon = path_var_long+basecall_file  
+    print('Bonito file:', filename_bon)
     with open(filename_bon) as bon_file:
         for record in SeqIO.parse(bon_file, "fastq"):
             bon_calls[record.id] = record.seq
+            print(record)
             # print(record.id, record.seq)
         bon_file.close() 
-    print('bonito read ids:', bon_calls.keys())
     
 #     mapping = {}
 #     for filename in os.listdir(path_var_long+'/fast5/'):

@@ -426,6 +426,7 @@ class Writer(Thread):
 
                 seq = res['sequence']
                 qstring = res.get('qstring', '*')
+                if qstring=='*':qstring='?'*len(seq)
                 mean_qscore = res.get('mean_qscore', mean_qscore_from_qstring(qstring))
                 mapping = res.get('mapping', False)
                 mods_tags = res.get('mods', [])
