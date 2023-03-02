@@ -50,7 +50,10 @@ def main(args):
     old_vers = ["v1", "v2"]
     if any(v in args.model_directory for v in old_vers):
         use_koi = False
-    else: use_koi = True
+        old_vers_flag = True
+    else: 
+        use_koi = True
+        old_vers_flag = False
     
     sys.stderr.write(f"> loading model {args.model_directory}\n")
     try:
@@ -130,12 +133,20 @@ def main(args):
     else:
         ResultsWriter = Writer
 
-    results = basecall(
-        model, reads, reverse=args.revcomp, rna=args.rna,
-        batchsize=model.config["basecaller"]["batchsize"],
-        chunksize=model.config["basecaller"]["chunksize"],
-        overlap=model.config["basecaller"]["overlap"]
-    )
+    if old_vers_flag:
+        results = basecall(
+            model, reads, reverse=args.revcomp, 
+            batchsize=model.config["basecaller"]["batchsize"],
+            chunksize=model.config["basecaller"]["chunksize"],
+            overlap=model.config["basecaller"]["overlap"]
+        )
+    else:
+        results = basecall(
+            model, reads, reverse=args.revcomp, rna=args.rna,
+            batchsize=model.config["basecaller"]["batchsize"],
+            chunksize=model.config["basecaller"]["chunksize"],
+            overlap=model.config["basecaller"]["overlap"]
+        )
     
     if mods_model is not None:
         if args.modified_device:
