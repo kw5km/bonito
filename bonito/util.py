@@ -12,6 +12,7 @@ from operator import itemgetter
 from importlib import import_module
 from collections import deque, defaultdict, OrderedDict
 from torch.utils.data import DataLoader
+from bonito_cuda_runtime import CuModel
 
 import toml
 import torch
@@ -225,6 +226,18 @@ def unbatchify(batches, dim=0):
         for k, group in groupby(batches, itemgetter(0))
     )
 
+def load_symbol_ctc(config, module, symbol):
+    """
+    Dynamic load a symbol from module specified in model config.
+    """
+    if not isinstance(config, dict):
+        if not os.path.isdir(config) and os.path.isdir(os.path.join(__models__, config)):
+            dirname = os.path.join(__models__, config)
+        else:
+            dirname = config
+        config = toml.load(os.path.join(dirname, 'config.toml'))
+    imported = import_module("%s.%s" % (config['model']['package'], module))
+    return getattr(imported, symbol)
 
 def load_symbol(config, symbol):
     """
@@ -271,6 +284,40 @@ def set_config_defaults(config, chunksize=None, batchsize=None, overlap=None, qu
     config["basecaller"] = basecall_params
     return config
 
+def load_model_ctc(dirname, device, weights=None, half=None, chunksize=0, use_rt=False):
+    """
+    Load a model from disk
+    """
+    if not os.path.isdir(dirname) and os.path.isdir(os.path.join(__models__, dirname)):
+        dirname = os.path.join(__models__, dirname)
+    if not weights: # take the latest checkpoint
+        weight_files = glob(os.path.join(dirname, "weights_*.tar"))
+        if not weight_files:
+            raise FileNotFoundError("no model weights found in '%s'" % dirname)
+        weights = max([int(re.sub(".*_([0-9]+).tar", "\\1", w)) for w in weight_files])
+
+    device = torch.device(device)
+    config = toml.load(os.path.join(dirname, 'config.toml'))
+    weights = os.path.join(dirname, 'weights_%s.tar' % weights)
+
+    Model = load_symbol_ctc(config, "model", "Model")
+    model = Model(config)
+
+    state_dict = torch.load(weights, map_location=device)
+    state_dict = {k2: state_dict[k1] for k1, k2 in match_names(state_dict, model).items()}
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = k.replace('module.', '')
+        new_state_dict[name] = v
+    model.load_state_dict(new_state_dict)
+    if use_rt:
+        model = CuModel(model.config, chunksize, new_state_dict)
+    if half is None:
+        half = half_supported()
+    if half: model = model.half()
+    model.eval()
+    model.to(device)
+    return model
 
 def load_model(dirname, device, weights=None, half=None, chunksize=None, batchsize=None, overlap=None, quantize=False, use_koi=False):
     """

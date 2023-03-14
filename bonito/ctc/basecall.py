@@ -24,6 +24,8 @@ def basecall(model, reads, beamsize=5, chunksize=0, overlap=0, batchsize=1, qsco
     scores = (
         (read, {'scores': stitch(v, chunksize, overlap, len(read.signal), model.stride)}) for read, v in scores
     )
+
+    # print('SCORES:', scores['scores'])
     decoder = partial(decode, decode=model.decode, beamsize=beamsize, qscores=qscores, stride=model.stride)
     basecalls = process_map(decoder, scores, n_proc=4)
     return basecalls
@@ -53,6 +55,8 @@ def decode(scores, decode, beamsize=5, qscores=False, stride=1):
     if not (qscores or beamsize == 1):
         try:
             seq = decode(scores['scores'], beamsize=beamsize)
+            print('SCORES DECODE:', scores['scores'])
+            print('SEQ DECODE:', seq)
             path = None
             qstring = '*'
         except:

@@ -18,7 +18,7 @@ from bonito.io import CTCWriter, Writer, biofmt
 from bonito.mod_util import call_mods, load_mods_model
 from bonito.cli.download import File, models, __models__
 from bonito.multiprocessing import process_cancel, process_itemmap
-from bonito.util import column_to_set, load_symbol, load_model, init
+from bonito.util import column_to_set, load_symbol, load_symbol_ctc, load_model, load_model_ctc, init
 
 
 def main(args):
@@ -57,16 +57,26 @@ def main(args):
     
     sys.stderr.write(f"> loading model {args.model_directory}\n")
     try:
-        model = load_model(
-            args.model_directory,
-            args.device,
-            weights=args.weights if args.weights > 0 else None,
-            chunksize=args.chunksize,
-            overlap=args.overlap,
-            batchsize=args.batchsize,
-            quantize=args.quantize,
-            use_koi=use_koi,
-        )
+
+        if old_vers_flag:
+            model = load_model_ctc(
+                args.model_directory,
+                args.device,
+                weights=int(args.weights),
+                chunksize=args.chunksize,
+                use_rt=args.cudart
+            )
+        else:
+            model = load_model(
+                args.model_directory,
+                args.device,
+                weights=args.weights if args.weights > 0 else None,
+                chunksize=args.chunksize,
+                overlap=args.overlap,
+                batchsize=args.batchsize,
+                quantize=args.quantize,
+                use_koi=use_koi,
+            )
     except FileNotFoundError:
         sys.stderr.write(f"> error: failed to load {args.model_directory}\n")
         sys.stderr.write(f"> available models:\n")
@@ -76,7 +86,10 @@ def main(args):
     if args.verbose:
         sys.stderr.write(f"> model basecaller params: {model.config['basecaller']}\n")
 
-    basecall = load_symbol(args.model_directory, "basecall")
+    if old_vers_flag:
+        basecall = load_symbol_ctc(args.model_directory, "basecall", "basecall")
+    else:   
+        basecall = load_symbol(args.model_directory, "basecall")
 
     mods_model = None
     if args.modified_base_model is not None or args.modified_bases is not None:
@@ -135,11 +148,17 @@ def main(args):
 
     if old_vers_flag:
         results = basecall(
-            model, reads, reverse=args.revcomp, 
-            batchsize=model.config["basecaller"]["batchsize"],
-            chunksize=model.config["basecaller"]["chunksize"],
-            overlap=model.config["basecaller"]["overlap"]
+            model, reads,
+            beamsize=args.beamsize,
+            chunksize=args.chunksize, overlap=args.overlap,
+            batchsize=args.batchsize
         )
+        # results = basecall(
+        #     model, reads, reverse=args.revcomp, 
+        #     batchsize=model.config["basecaller"]["batchsize"],
+        #     chunksize=model.config["basecaller"]["chunksize"],
+        #     overlap=model.config["basecaller"]["overlap"]
+        # )
     else:
         results = basecall(
             model, reads, reverse=args.revcomp, rna=args.rna,
@@ -211,10 +230,13 @@ def argparser():
     quant_parser.add_argument("--no-quantize", dest="quantize", action="store_false")
     parser.set_defaults(quantize=None)
     parser.add_argument("--overlap", default=None, type=int)
-    parser.add_argument("--chunksize", default=None, type=int)
-    parser.add_argument("--batchsize", default=None, type=int)
+    parser.add_argument("--beamsize", default=5, type=int)
+    parser.add_argument("--chunksize", default=0, type=int)
+    parser.add_argument("--batchsize", default=1, type=int)
     parser.add_argument("--max-reads", default=0, type=int)
     parser.add_argument("--min-qscore", default=0, type=int)
+    parser.add_argument("--fastq", action="store_true", default=False)
+    parser.add_argument("--cudart", action="store_true", default=False)
     parser.add_argument("--min-accuracy-save-ctc", default=0.99, type=float)
     parser.add_argument("--alignment-threads", default=8, type=int)
     parser.add_argument('-v', '--verbose', action='count', default=0)
